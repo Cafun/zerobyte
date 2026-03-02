@@ -75,13 +75,17 @@ describe("repositories security", () => {
 			{ method: "GET", path: "/api/v1/repositories/test-repo/stats" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/snapshots/refresh" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/files" },
 			{ method: "GET", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot/dump" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/restore" },
 			{ method: "POST", path: "/api/v1/repositories/test-repo/doctor" },
+			{ method: "DELETE", path: "/api/v1/repositories/test-repo/doctor" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/unlock" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo/snapshots/test-snapshot" },
 			{ method: "DELETE", path: "/api/v1/repositories/test-repo/snapshots" },
+			{ method: "POST", path: "/api/v1/repositories/test-repo/snapshots/tag" },
 			{ method: "PATCH", path: "/api/v1/repositories/test-repo" },
 		];
 
@@ -93,6 +97,21 @@ describe("repositories security", () => {
 				expect(body.message).toBe("Invalid or expired session");
 			});
 		}
+	});
+
+	describe("dev panel endpoint - requires dev panel access", () => {
+		test("POST /api/v1/repositories/:shortId/exec should return 401 when unauthenticated", async () => {
+			const res = await app.request("/api/v1/repositories/test-repo/exec", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ command: "version" }),
+			});
+			expect(res.status).toBe(401);
+			const body = await res.json();
+			expect(body.message).toBe("Invalid or expired session");
+		});
 	});
 
 	describe("information disclosure", () => {
