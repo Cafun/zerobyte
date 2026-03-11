@@ -1,5 +1,5 @@
-import { safeExec } from "./spawn";
-import { logger } from "./logger";
+import { safeExec } from "@zerobyte/core/node";
+import { logger } from "@zerobyte/core/node";
 import { toMessage } from "./errors";
 
 export interface SendNotificationParams {

@@ -1,6 +1,6 @@
-import { logger } from "./logger";
+import { logger } from "@zerobyte/core/node";
 import { toMessage } from "./errors";
-import { safeExec } from "./spawn";
+import { safeExec } from "@zerobyte/core/node";
 
 /**
  * List all configured rclone remotes
