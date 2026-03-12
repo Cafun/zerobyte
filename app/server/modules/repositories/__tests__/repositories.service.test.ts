@@ -203,7 +203,15 @@ describe("repositoriesService.dumpSnapshot", () => {
 		abort: () => {},
 	});
 
-	const setupDumpSnapshotScenario = async ({ snapshotId, basePath }: { snapshotId: string; basePath: string }) => {
+	const setupDumpSnapshotScenario = async ({
+		snapshotId,
+		basePath,
+		snapshotPaths,
+	}: {
+		snapshotId: string;
+		basePath: string;
+		snapshotPaths?: string[];
+	}) => {
 		const { organizationId, user } = await createTestSession();
 		const shortId = generateShortId();
 
@@ -226,7 +234,7 @@ describe("repositoriesService.dumpSnapshot", () => {
 				id: snapshotId,
 				short_id: snapshotId,
 				time: new Date().toISOString(),
-				paths: [basePath],
+				paths: snapshotPaths ?? [basePath],
 				hostname: "host",
 			},
 		]);
@@ -293,6 +301,24 @@ describe("repositoriesService.dumpSnapshot", () => {
 		});
 		expect(result.filename).toBe("report.txt");
 		expect(result.contentType).toBe("application/octet-stream");
+	});
+
+	test("downloads a selected parent directory when snapshot paths point to a nested file", async () => {
+		const parentPath = "/var/lib/zerobyte/volumes/vol123/_data/documents";
+		const { organizationId, userId, shortId, dumpMock } = await setupDumpSnapshotScenario({
+			snapshotId: "snapshot-parent-dir",
+			basePath: `${parentPath}/report.txt`,
+			snapshotPaths: [`${parentPath}/report.txt`],
+		});
+
+		await withContext({ organizationId, userId }, () =>
+			repositoriesService.dumpSnapshot(shortId, "snapshot-parent-dir", parentPath, "dir"),
+		);
+
+		expect(dumpMock).toHaveBeenCalledWith(expect.anything(), `snapshot-parent-dir:${parentPath}`, {
+			organizationId,
+			path: "/",
+		});
 	});
 
 	test("rejects path downloads without a kind", async () => {

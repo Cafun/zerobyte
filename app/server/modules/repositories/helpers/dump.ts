@@ -34,6 +34,15 @@ export const prepareSnapshotDump = (params: {
 		};
 	}
 
+	const relativeFromRequested = path.posix.relative(normalizedRequestedPath, basePath);
+	if (relativeFromRequested !== ".." && !relativeFromRequested.startsWith("../")) {
+		return {
+			snapshotRef: `${snapshotId}:${normalizedRequestedPath}`,
+			path: "/",
+			filename: archiveFilename,
+		};
+	}
+
 	const relativeFromBase = path.posix.relative(basePath, normalizedRequestedPath);
 	if (relativeFromBase === ".." || relativeFromBase.startsWith("../")) {
 		throw new BadRequestError("Requested path is outside the snapshot base path");

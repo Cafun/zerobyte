@@ -51,7 +51,7 @@ export const resticRestoreOutputSchema = z.object({
 	files_skipped: z.number(),
 	total_bytes: z.number().optional(),
 	bytes_restored: z.number().optional(),
-	bytes_skipped: z.number(),
+	bytes_skipped: z.number().optional(),
 });
 
 export const resticStatsSchema = z.object({

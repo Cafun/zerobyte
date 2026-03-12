@@ -317,6 +317,8 @@ If you're running Zerobyte behind a reverse proxy (Nginx, Traefik, Caddy, etc.):
 
 - The `BASE_URL` must start with `https://` for secure cookies to be enabled
 - Local IP addresses (e.g., `http://192.168.x.x`) are **not** treated as secure contexts by browsers, so secure cookies are disabled automatically
+- `TRUSTED_ORIGINS` only allows additional origins for auth-related requests. It does not disable secure cookies or make authenticated HTTP access work when `BASE_URL` is HTTPS.
+- If `BASE_URL` is HTTPS, browsers will only send Zerobyte's auth cookies over HTTPS. Plain HTTP access may still show the login page, but authenticated flows will fail because no session cookie is available.
 
 ## Troubleshooting
 

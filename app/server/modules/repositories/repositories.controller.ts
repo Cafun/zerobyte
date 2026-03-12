@@ -217,12 +217,15 @@ export const repositoriesController = new Hono()
 				await reader.cancel(reason).catch(() => {});
 			},
 		});
+		const filename = dumpStream.filename || "snapshot.tar";
 
 		return new Response(webStream, {
 			status: 200,
 			headers: {
 				"Content-Type": dumpStream.contentType,
-				"Content-Disposition": contentDisposition(dumpStream.filename || "snapshot.tar"),
+				"Content-Disposition": contentDisposition(filename, {
+					fallback: filename.replace(/[^\x20-\x7E]/g, "?"),
+				}),
 				"X-Content-Type-Options": "nosniff",
 			},
 		});

@@ -384,6 +384,38 @@ describe("repositories updates", () => {
 				dumpSnapshotSpy.mockRestore();
 			}
 		});
+
+		test("returns a valid content-disposition header for non-ascii filenames", async () => {
+			const { headers, organizationId } = await createTestSession();
+			const repository = await createRepositoryRecord(organizationId);
+			const { repositoriesService } = await import("~/server/modules/repositories/repositories.service");
+
+			const stream = new PassThrough();
+			const dumpSnapshotSpy = spyOn(repositoriesService, "dumpSnapshot").mockResolvedValue({
+				stream,
+				completion: Promise.resolve(),
+				abort: () => {
+					stream.destroy(new Error("download aborted"));
+				},
+				filename: "möte.txt",
+				contentType: "application/octet-stream",
+			});
+
+			try {
+				stream.end("downloaded snapshot contents");
+
+				const response = await app.request(`/api/v1/repositories/${repository.shortId}/snapshots/test-snapshot/dump`, {
+					headers,
+				});
+
+				expect(response.status).toBe(200);
+				expect(response.headers.get("Content-Disposition")).toBe(
+					`attachment; filename="m?te.txt"; filename*=UTF-8''m%C3%B6te.txt`,
+				);
+			} finally {
+				dumpSnapshotSpy.mockRestore();
+			}
+		});
 	});
 
 	test("GET marks provisioned repositories as managed", async () => {
