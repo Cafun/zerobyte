@@ -225,9 +225,11 @@ export const RepositoryInfoTabContent = ({ repository, initialStats }: Props) =>
 						</Card>
 
 						{hasLastError && (
-							<Card className="px-6 py-6 border-red-500/20 bg-red-500/5">
-								<h3 className="text-lg font-medium text-red-500 mb-2">Last Error</h3>
-								<p className="text-sm text-red-500/90 font-mono wrap-break-word">{repository.lastError}</p>
+							<Card className="flex flex-col px-6 py-6">
+								<div className="space-y-2">
+									<p className="text-sm font-medium text-destructive">Last Error</p>
+									<p className="text-sm text-muted-foreground wrap-break-word">{repository.lastError}</p>
+								</div>
 							</Card>
 						)}
 
