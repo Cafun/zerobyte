@@ -83,8 +83,13 @@ async function createBackupJob(page: Page, options: BackupJobOptions) {
 	} else {
 		await page.getByRole("link", { name: "Create a backup job" }).first().click();
 	}
-	await page.getByRole("combobox").filter({ hasText: "Choose a volume to backup" }).click();
-	await page.getByRole("option", { name: options.volumeName }).click();
+	const volumeSelect = page.getByRole("combobox").filter({ hasText: "Choose a volume to backup" });
+	const volumeOption = page.getByRole("option", { name: options.volumeName });
+	await expect(async () => {
+		await volumeSelect.click();
+		await expect(volumeOption).toBeVisible();
+	}).toPass({ timeout: 10000 });
+	await volumeOption.click();
 	await page.getByRole("textbox", { name: "Backup name" }).fill(options.backupName);
 	await page.getByRole("combobox").filter({ hasText: "Select a repository" }).click();
 	await page.getByRole("option", { name: options.repositoryName }).click();
@@ -225,8 +230,13 @@ test("can re-tag a snapshot to another backup schedule", async ({ page }, testIn
 		.first()
 		.check();
 	await page.getByRole("button", { name: "Re-tag" }).click();
-	await page.getByRole("combobox").click();
-	await page.getByRole("option", { name: secondBackupName, exact: true }).click();
+	const retagSelect = page.getByRole("combobox");
+	const retagOption = page.getByRole("option", { name: secondBackupName, exact: true });
+	await expect(async () => {
+		await retagSelect.click();
+		await expect(retagOption).toBeVisible();
+	}).toPass({ timeout: 10000 });
+	await retagOption.click();
 	await page.getByRole("button", { name: "Apply tags" }).click();
 
 	await expect(page.getByText(`Snapshots re-tagged to ${secondBackupName}`)).toBeVisible({ timeout: 30000 });
