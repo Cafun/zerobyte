@@ -6,7 +6,6 @@ import {
 	backupScheduleNotificationsTable,
 	type NotificationDestination,
 } from "../../db/schema";
-import { cryptoUtils } from "../../utils/crypto";
 import { logger } from "@zerobyte/core/node";
 import { sendNotification } from "../../utils/shoutrrr";
 import { formatDuration } from "~/utils/utils";
@@ -16,6 +15,7 @@ import type { ResticBackupRunSummaryDto } from "@zerobyte/core/restic";
 import { toMessage } from "../../utils/errors";
 import { getOrganizationId } from "~/server/core/request-context";
 import { formatBytes } from "~/utils/format-bytes";
+import { decryptNotificationConfig, encryptNotificationConfig } from "./notification-config-secrets";
 
 const listDestinations = async () => {
 	const organizationId = getOrganizationId();
@@ -39,104 +39,6 @@ const getDestination = async (id: number) => {
 	return destination;
 };
 
-async function encryptSensitiveFields(config: NotificationConfig): Promise<NotificationConfig> {
-	switch (config.type) {
-		case "email":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
-			};
-		case "slack":
-			return {
-				...config,
-				webhookUrl: await cryptoUtils.sealSecret(config.webhookUrl),
-			};
-		case "discord":
-			return {
-				...config,
-				webhookUrl: await cryptoUtils.sealSecret(config.webhookUrl),
-			};
-		case "gotify":
-			return {
-				...config,
-				token: await cryptoUtils.sealSecret(config.token),
-			};
-		case "ntfy":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.sealSecret(config.password) : undefined,
-			};
-		case "pushover":
-			return {
-				...config,
-				apiToken: await cryptoUtils.sealSecret(config.apiToken),
-			};
-		case "telegram":
-			return {
-				...config,
-				botToken: await cryptoUtils.sealSecret(config.botToken),
-			};
-		case "generic":
-			return config;
-		case "custom":
-			return {
-				...config,
-				shoutrrrUrl: await cryptoUtils.sealSecret(config.shoutrrrUrl),
-			};
-		default:
-			return config;
-	}
-}
-
-async function decryptSensitiveFields(config: NotificationConfig): Promise<NotificationConfig> {
-	switch (config.type) {
-		case "email":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.resolveSecret(config.password) : undefined,
-			};
-		case "slack":
-			return {
-				...config,
-				webhookUrl: await cryptoUtils.resolveSecret(config.webhookUrl),
-			};
-		case "discord":
-			return {
-				...config,
-				webhookUrl: await cryptoUtils.resolveSecret(config.webhookUrl),
-			};
-		case "gotify":
-			return {
-				...config,
-				token: await cryptoUtils.resolveSecret(config.token),
-			};
-		case "ntfy":
-			return {
-				...config,
-				password: config.password ? await cryptoUtils.resolveSecret(config.password) : undefined,
-			};
-		case "pushover":
-			return {
-				...config,
-				apiToken: await cryptoUtils.resolveSecret(config.apiToken),
-			};
-		case "telegram":
-			return {
-				...config,
-				botToken: await cryptoUtils.resolveSecret(config.botToken),
-			};
-		case "generic":
-			return config;
-		case "custom":
-			return {
-				...config,
-				shoutrrrUrl: await cryptoUtils.resolveSecret(config.shoutrrrUrl),
-			};
-		default:
-			return config;
-	}
-}
-
 const createDestination = async (name: string, config: NotificationConfig) => {
 	const organizationId = getOrganizationId();
 	const trimmedName = name.trim();
@@ -145,7 +47,7 @@ const createDestination = async (name: string, config: NotificationConfig) => {
 		throw new BadRequestError("Name cannot be empty");
 	}
 
-	const encryptedConfig = await encryptSensitiveFields(config);
+	const encryptedConfig = await encryptNotificationConfig(config);
 
 	const [created] = await db
 		.insert(notificationDestinationsTable)
@@ -197,7 +99,7 @@ const updateDestination = async (
 	}
 	const newConfig = newConfigResult.data;
 
-	const encryptedConfig = await encryptSensitiveFields(newConfig);
+	const encryptedConfig = await encryptNotificationConfig(newConfig);
 	updateData.config = encryptedConfig;
 	updateData.type = newConfig.type;
 
@@ -229,7 +131,7 @@ const deleteDestination = async (id: number) => {
 const testDestination = async (id: number) => {
 	const destination = await getDestination(id);
 
-	const decryptedConfig = await decryptSensitiveFields(destination.config);
+	const decryptedConfig = await decryptNotificationConfig(destination.config);
 
 	const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
@@ -426,7 +328,7 @@ const sendBackupNotification = async (
 
 		for (const assignment of relevantAssignments) {
 			try {
-				const decryptedConfig = await decryptSensitiveFields(assignment.destination.config);
+				const decryptedConfig = await decryptNotificationConfig(assignment.destination.config);
 				const shoutrrrUrl = buildShoutrrrUrl(decryptedConfig);
 
 				const result = await sendNotification({ shoutrrrUrl, title, body });
