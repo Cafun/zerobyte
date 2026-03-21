@@ -59,7 +59,10 @@ export type SpawnResult = {
 	exitCode: number;
 	summary: string;
 	error: string;
+	stderr?: string;
 };
+
+const MAX_STDERR_LINES = 50;
 
 export function safeSpawn(params: SafeSpawnParamsLines): Promise<SpawnResult>;
 export function safeSpawn(params: SafeSpawnParamsRaw): Promise<SpawnResult>;
@@ -70,6 +73,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 
 	let lastStdout = "";
 	let lastStderr = "";
+	const stderrLines: string[] = [];
 
 	return new Promise<SpawnResult>((resolve) => {
 		const child = spawn(command, args, {
@@ -101,6 +105,10 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 
 		rlErr.on("line", (line) => {
 			if (onStderr) onStderr(line);
+			stderrLines.push(line);
+			if (stderrLines.length > MAX_STDERR_LINES) {
+				stderrLines.shift();
+			}
 			const trimmed = line.trim();
 			if (trimmed.length > 0) {
 				lastStderr = line;
@@ -115,6 +123,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 				exitCode: -1,
 				summary: lastStdout,
 				error: err.message || lastStderr,
+				stderr: stderrLines.join("\n"),
 			});
 		});
 
@@ -123,6 +132,7 @@ export function safeSpawn(params: SafeSpawnParams): Promise<SpawnResult> {
 				exitCode: code ?? -1,
 				summary: lastStdout,
 				error: lastStderr,
+				stderr: stderrLines.join("\n"),
 			});
 		});
 	});
