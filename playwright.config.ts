@@ -23,7 +23,6 @@ export default defineConfig({
 			name: "chromium",
 			use: {
 				...devices["Desktop Chrome"],
-				storageState: "playwright/.auth/user.json",
 				launchOptions: {
 					args: ["--host-rules=MAP dex 127.0.0.1"],
 				},

@@ -1,12 +1,31 @@
 import fs from "fs";
 import { test, expect } from "./test";
-import { resetDatabase } from "./helpers/db";
+import { db, resetDatabase } from "./helpers/db";
 import path from "node:path";
+import { REGISTRATION_ENABLED_KEY } from "~/server/core/constants";
+import { appMetadataTable } from "~/server/db/schema";
 import { gotoAndWaitForAppReady } from "./helpers/page";
 
 const authFile = path.join(process.cwd(), "./playwright/.auth/user.json");
+const enableRegistrations = async () => {
+	const now = Date.now();
 
-// TODO: Run these tests with different users once multi-user support is added
+	await db
+		.insert(appMetadataTable)
+		.values({
+			key: REGISTRATION_ENABLED_KEY,
+			value: JSON.stringify(true),
+			createdAt: now,
+			updatedAt: now,
+		})
+		.onConflictDoUpdate({
+			target: appMetadataTable.key,
+			set: {
+				value: JSON.stringify(true),
+				updatedAt: now,
+			},
+		});
+};
 
 // Run tests in serial mode to avoid conflicts during onboarding
 test.describe.configure({ mode: "serial" });
@@ -16,9 +35,7 @@ test.beforeAll(async () => {
 });
 
 test("should redirect to onboarding", async ({ page }) => {
-	await gotoAndWaitForAppReady(page, "/");
-
-	await page.waitForURL(/onboarding/);
+	await gotoAndWaitForAppReady(page, "/onboarding");
 
 	await expect(page).toHaveTitle(/Zerobyte - Onboarding/);
 });
@@ -94,6 +111,8 @@ test("can login after initial setup", async ({ page }) => {
 
 	await expect(page).toHaveURL("/volumes");
 	await expect(page.getByRole("heading", { name: "No volume" })).toBeVisible();
+
+	await enableRegistrations();
 
 	await page.context().storageState({ path: authFile });
 });

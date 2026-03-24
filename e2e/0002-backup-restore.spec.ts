@@ -35,6 +35,11 @@ function getRunId(testInfo: TestInfo) {
 	return `${testInfo.parallelIndex}-${testInfo.retry}-${randomUUID().slice(0, 8)}`;
 }
 
+function getWorkerTestDataPath(runId: string) {
+	fs.mkdirSync(testDataPath, { recursive: true });
+	return testDataPath;
+}
+
 function getScenarioNames(runId: string): ScenarioNames {
 	return {
 		volumeName: `Volume-${runId}`,
@@ -44,7 +49,7 @@ function getScenarioNames(runId: string): ScenarioNames {
 }
 
 function prepareTestFile(runId: string, fileName = "test.json"): string {
-	const runPath = path.join(testDataPath, runId);
+	const runPath = path.join(getWorkerTestDataPath(runId), runId);
 	fs.mkdirSync(runPath, { recursive: true });
 
 	const filePath = path.join(runPath, fileName);
@@ -53,8 +58,15 @@ function prepareTestFile(runId: string, fileName = "test.json"): string {
 	return filePath;
 }
 
-async function createBackupScenario(page: Page, names: ScenarioNames, options: ScenarioOptions = {}) {
-	await page.getByRole("button", { name: "Create Volume" }).click();
+async function createBackupScenario(page: Page, names: ScenarioNames, runId: string, options: ScenarioOptions = {}) {
+	getWorkerTestDataPath(runId);
+
+	const volumeNameInput = page.getByRole("textbox", { name: "Name" });
+	await expect(async () => {
+		await page.getByRole("button", { name: "Create Volume" }).click();
+		await expect(volumeNameInput).toBeVisible();
+	}).toPass({ timeout: 10000 });
+
 	await page.getByRole("textbox", { name: "Name" }).fill(names.volumeName);
 	await page.getByRole("button", { name: "test-data" }).click();
 	await page.getByRole("button", { name: "Create Volume" }).click();
@@ -141,7 +153,7 @@ test("can backup & restore a file", async ({ page }, testInfo) => {
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names);
+	await createBackupScenario(page, names, runId);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -150,7 +162,7 @@ test("can backup & restore a file", async ({ page }, testInfo) => {
 	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
 
 	await page
-		.getByRole("button", { name: /\d+ B$/ })
+		.getByRole("button", { name: /\d+(?:\.\d+)?\s(?:B|KiB|MiB|GiB|TiB)$/ })
 		.first()
 		.click();
 	await page.getByRole("link", { name: "Restore" }).click();
@@ -165,9 +177,10 @@ test("can backup & restore a file", async ({ page }, testInfo) => {
 test("can restore a single selected file to a custom location", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
+	const workerTestDataPath = getWorkerTestDataPath(runId);
 	const fileName = `single-file-${runId}.json`;
 	const filePath = prepareTestFile(runId, fileName);
-	const restoreTargetPath = path.join(testDataPath, fileName);
+	const restoreTargetPath = path.join(workerTestDataPath, fileName);
 	const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 	fs.rmSync(restoreTargetPath, { force: true });
@@ -175,7 +188,7 @@ test("can restore a single selected file to a custom location", async ({ page },
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names);
+	await createBackupScenario(page, names, runId);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -184,7 +197,7 @@ test("can restore a single selected file to a custom location", async ({ page },
 	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
 
 	await page
-		.getByRole("button", { name: /\d+ B$/ })
+		.getByRole("button", { name: /\d+(?:\.\d+)?\s(?:B|KiB|MiB|GiB|TiB)$/ })
 		.first()
 		.click();
 	await page.getByRole("link", { name: "Restore" }).click();
@@ -221,7 +234,7 @@ test("can re-tag a snapshot to another backup schedule", async ({ page }, testIn
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names);
+	await createBackupScenario(page, names, runId);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -264,7 +277,7 @@ test("can delete a snapshot from the repository snapshots tab", async ({ page },
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names);
+	await createBackupScenario(page, names, runId);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -289,16 +302,17 @@ test("can delete a snapshot from the repository snapshots tab", async ({ page },
 test("can download a selected snapshot directory as a tar archive", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
+	const workerTestDataPath = getWorkerTestDataPath(runId);
 	const fileName = `download-${runId}.json`;
 	const filePath = prepareTestFile(runId, fileName);
-	const downloadedPath = path.join(testDataPath, `downloaded-${runId}.tar`);
+	const downloadedPath = path.join(workerTestDataPath, `downloaded-${runId}.tar`);
 
 	fs.rmSync(downloadedPath, { force: true });
 
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names);
+	await createBackupScenario(page, names, runId);
 
 	await page.getByRole("button", { name: "Backup now" }).click();
 	await expect(page.getByText("Backup started successfully")).toBeVisible();
@@ -307,7 +321,7 @@ test("can download a selected snapshot directory as a tar archive", async ({ pag
 	fs.writeFileSync(filePath, JSON.stringify({ data: "modified file" }));
 
 	await page
-		.getByRole("button", { name: /\d+ B$/ })
+		.getByRole("button", { name: /\d+(?:\.\d+)?\s(?:B|KiB|MiB|GiB|TiB)$/ })
 		.first()
 		.click();
 	await page.getByRole("link", { name: "Restore" }).click();
@@ -337,7 +351,7 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names);
+	await createBackupScenario(page, names, runId);
 
 	await gotoAndWaitForAppReady(page, "/backups");
 	await page.getByText(names.backupName, { exact: true }).first().click();
@@ -364,6 +378,7 @@ test("deleting a volume cascades and removes its backup schedule", async ({ page
 test("backup respects include globs, exclusion patterns, and exclude-if-present", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
+	const workerTestDataPath = getWorkerTestDataPath(runId);
 
 	const keptDir = `kept-${runId}`;
 	const secondKeptDir = `second-kept-${runId}`;
@@ -380,12 +395,12 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 	const secondRootDbFile = `archive-${runId}.db`;
 	const rootNonDbFile = `root-${runId}.txt`;
 
-	const keptPath = path.join(testDataPath, keptDir);
-	const secondKeptPath = path.join(testDataPath, secondKeptDir);
-	const blockedPath = path.join(testDataPath, blockedDir);
-	const globOnlyPath = path.join(testDataPath, globOnlyDir);
-	const dataPath = path.join(testDataPath, dataDir);
-	const configPath = path.join(testDataPath, configDir);
+	const keptPath = path.join(workerTestDataPath, keptDir);
+	const secondKeptPath = path.join(workerTestDataPath, secondKeptDir);
+	const blockedPath = path.join(workerTestDataPath, blockedDir);
+	const globOnlyPath = path.join(workerTestDataPath, globOnlyDir);
+	const dataPath = path.join(workerTestDataPath, dataDir);
+	const configPath = path.join(workerTestDataPath, configDir);
 
 	fs.mkdirSync(keptPath, { recursive: true });
 	fs.mkdirSync(secondKeptPath, { recursive: true });
@@ -411,14 +426,14 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 	fs.writeFileSync(path.join(configPath, configExcludedFile), "json excluded by absolute exclude");
 	fs.writeFileSync(path.join(configPath, configNonJsonFile), "not included by /config/*.json");
 
-	fs.writeFileSync(path.join(testDataPath, rootDbFile), "root db include");
-	fs.writeFileSync(path.join(testDataPath, secondRootDbFile), "second root db include");
-	fs.writeFileSync(path.join(testDataPath, rootNonDbFile), "root non-db exclude");
+	fs.writeFileSync(path.join(workerTestDataPath, rootDbFile), "root db include");
+	fs.writeFileSync(path.join(workerTestDataPath, secondRootDbFile), "second root db include");
+	fs.writeFileSync(path.join(workerTestDataPath, rootNonDbFile), "root non-db exclude");
 
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, {
+	await createBackupScenario(page, names, runId, {
 		includePatterns: [
 			`/${keptDir}`,
 			`/${secondKeptDir}`,
@@ -477,8 +492,9 @@ test("backup respects include globs, exclusion patterns, and exclude-if-present"
 test("backup can include a selected folder whose name contains brackets", async ({ page }, testInfo) => {
 	const runId = getRunId(testInfo);
 	const names = getScenarioNames(runId);
+	const workerTestDataPath = getWorkerTestDataPath(runId);
 	const bracketDir = `movies [${runId}]`;
-	const bracketPath = path.join(testDataPath, bracketDir);
+	const bracketPath = path.join(workerTestDataPath, bracketDir);
 	const fileName = `inside-${runId}.txt`;
 
 	fs.mkdirSync(bracketPath, { recursive: true });
@@ -487,7 +503,7 @@ test("backup can include a selected folder whose name contains brackets", async 
 	await gotoAndWaitForAppReady(page, "/");
 	await expect(page).toHaveURL("/volumes");
 
-	await createBackupScenario(page, names, {
+	await createBackupScenario(page, names, runId, {
 		selectedPaths: [`/${bracketDir}`],
 	});
 

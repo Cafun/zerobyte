@@ -1,3 +1,4 @@
+import path from "node:path";
 import { type Browser, type Page } from "@playwright/test";
 import { expect, test } from "./test";
 import { trackBrowserErrors } from "./helpers/browser-errors";
@@ -7,6 +8,7 @@ const dexOrigin = process.env.E2E_DEX_ORIGIN ?? "http://dex:5557";
 const issuer = `${dexOrigin}/dex`;
 const discoveryEndpoint = `${issuer}/.well-known/openid-configuration`;
 const appBaseUrl = `http://${process.env.SERVER_IP ?? "localhost"}:4096`;
+const setupAuthFile = path.join(process.cwd(), "playwright", ".auth", "user.json");
 
 const providerIds = {
 	uninvited: "test-oidc-uninvited",
@@ -83,25 +85,34 @@ async function createPendingInvitation(page: Page, email: string) {
 	}
 }
 
-async function createLocalUser(page: Page, email: string, username: string) {
-	const response = await page.request.post("/api/auth/admin/create-user", {
-		headers: {
-			Origin: appBaseUrl,
-		},
-		data: {
-			email,
-			password: dexPassword,
-			name: "SSO Link Target",
-			role: "user",
-			data: {
-				username,
-				hasDownloadedResticPassword: true,
-			},
-		},
+async function createLocalUser(browser: Browser, email: string, username: string) {
+	const adminContext = await browser.newContext({
+		baseURL: appBaseUrl,
+		storageState: setupAuthFile,
 	});
 
-	if (!response.ok()) {
-		throw new Error(`Failed to create local user ${email}: ${await response.text()}`);
+	try {
+		const response = await adminContext.request.post("/api/auth/admin/create-user", {
+			headers: {
+				Origin: appBaseUrl,
+			},
+			data: {
+				email,
+				password: dexPassword,
+				name: "SSO Link Target",
+				role: "user",
+				data: {
+					username,
+					hasDownloadedResticPassword: true,
+				},
+			},
+		});
+
+		if (!response.ok()) {
+			throw new Error(`Failed to create local user ${email}: ${await response.text()}`);
+		}
+	} finally {
+		await adminContext.close();
 	}
 }
 
@@ -338,7 +349,7 @@ test("invited OIDC users can sign in, retain access, and are blocked after remov
 
 test("auto-link policy enforces invitation and controls account linking", async ({ page, browser }) => {
 	await registerOidcProvider(page, providerIds.autoLinkNoInvite);
-	await createLocalUser(page, autoLinkUninvitedLocalEmail, autoLinkUninvitedLocalUsername);
+	await createLocalUser(browser, autoLinkUninvitedLocalEmail, autoLinkUninvitedLocalUsername);
 	await setProviderAutoLinking(page, providerIds.autoLinkNoInvite, true);
 
 	await withOidcLoginAttempt(browser, providerIds.autoLinkNoInvite, autoLinkUninvitedLocalEmail, async (ssoPage) => {
@@ -346,7 +357,7 @@ test("auto-link policy enforces invitation and controls account linking", async 
 	});
 
 	await registerOidcProvider(page, providerIds.autoLink);
-	await createLocalUser(page, autoLinkTargetEmail, autoLinkTargetUsername);
+	await createLocalUser(browser, autoLinkTargetEmail, autoLinkTargetUsername);
 	await createPendingInvitation(page, autoLinkTargetEmail);
 	await setProviderAutoLinking(page, providerIds.autoLink, false);
 
