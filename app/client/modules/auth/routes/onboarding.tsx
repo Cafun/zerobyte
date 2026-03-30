@@ -20,7 +20,7 @@ import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { normalizeUsername } from "~/lib/username";
 import { z } from "zod";
-import { DEFAULT_DATE_FORMAT, DEFAULT_TIME_FORMAT } from "~/client/lib/datetime";
+import { inferDateTimePreferences } from "~/client/lib/datetime";
 
 export const clientMiddleware = [authMiddleware];
 
@@ -59,10 +59,12 @@ export function OnboardingPage() {
 			return;
 		}
 
+		const { dateFormat, timeFormat } = inferDateTimePreferences(navigator.language);
+
 		const { data, error } = await authClient.signUp.email({
 			username: normalizeUsername(values.username),
-			dateFormat: DEFAULT_DATE_FORMAT,
-			timeFormat: DEFAULT_TIME_FORMAT,
+			dateFormat,
+			timeFormat,
 			password: values.password,
 			email: values.email.toLowerCase().trim(),
 			name: values.username,

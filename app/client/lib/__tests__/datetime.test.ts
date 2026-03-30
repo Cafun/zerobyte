@@ -8,6 +8,7 @@ import {
 	formatShortDateTime,
 	formatTime,
 	formatTimeAgo,
+	inferDateTimePreferences,
 } from "../datetime";
 
 afterEach(() => {
@@ -87,6 +88,14 @@ describe("datetime formatters", () => {
 		["24h", "14:30"],
 	] as const)("formats times with %s clock", (timeFormat, expected) => {
 		expect(formatTime(sampleDate, { locale: "en-US", timeZone: "UTC", timeFormat })).toBe(expected);
+	});
+
+	test.each([
+		["en-US", { dateFormat: "MM/DD/YYYY", timeFormat: "12h" }],
+		["en-GB", { dateFormat: "DD/MM/YYYY", timeFormat: "24h" }],
+		["ja-JP", { dateFormat: "YYYY/MM/DD", timeFormat: "24h" }],
+	] as const)("infers date and time preferences for %s", (locale, expected) => {
+		expect(inferDateTimePreferences(locale)).toEqual(expected);
 	});
 
 	test("formats combined values with custom date and time preferences", () => {
