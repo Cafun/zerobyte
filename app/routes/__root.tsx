@@ -6,40 +6,15 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "~/client/components/ui/sonner";
 import { useServerEvents } from "~/client/hooks/use-server-events";
 import { useEffect } from "react";
-import { ThemeProvider, THEME_COOKIE_NAME } from "~/client/components/theme-provider";
-import { createServerFn } from "@tanstack/react-start";
-import { getCookie, getRequestHeaders } from "@tanstack/react-start/server";
+import { ThemeProvider } from "~/client/components/theme-provider";
 import { isAuthRoute } from "~/lib/auth-routes";
-import { auth } from "~/server/lib/auth";
-import type { DateFormatPreference, TimeFormatPreference } from "~/client/lib/datetime";
-
-const fetchTheme = createServerFn({ method: "GET" }).handler(async () => {
-	const themeCookie = getCookie(THEME_COOKIE_NAME);
-	return (themeCookie === "light" ? "light" : "dark") as "light" | "dark";
-});
-
-const fetchTimeConfig = createServerFn({ method: "GET" }).handler(async () => {
-	const headers = getRequestHeaders();
-	const acceptLanguage = headers.get("accept-language");
-	const session = await auth.api.getSession({ headers });
-
-	return {
-		locale: (acceptLanguage?.split(",")[0] || "en-US") as string,
-		timeZone: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-		dateFormat: (session?.user.dateFormat ?? "MM/DD/YYYY") as DateFormatPreference,
-		timeFormat: (session?.user.timeFormat ?? "12h") as TimeFormatPreference,
-		now: Date.now(),
-	};
-});
+import { getRootLoaderData } from "~/server/lib/functions/root-loader-data";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
 	server: {
 		middleware: [apiClientMiddleware],
 	},
-	loader: async () => {
-		const [theme, timeConfig] = await Promise.all([fetchTheme(), fetchTimeConfig()]);
-		return { theme, ...timeConfig };
-	},
+	loader: async () => getRootLoaderData(),
 	head: () => ({
 		meta: [{ title: "Zerobyte - Open Source Backup Solution" }],
 		links: [
