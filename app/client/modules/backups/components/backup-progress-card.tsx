@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { ByteSize } from "~/client/components/bytes-size";
+import { useFormatBytes } from "~/client/hooks/use-format-bytes";
+import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
 import { getBackupProgressOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetBackupProgressResponse } from "~/client/api-client/types.gen";
 import { formatDuration } from "~/utils/utils";
-import { formatBytes } from "~/utils/format-bytes";
 
 type Props = {
 	scheduleShortId: string;
@@ -13,6 +14,8 @@ type Props = {
 };
 
 export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) => {
+	const formatBytes = useFormatBytes();
+	const { locale } = useRootLoaderData();
 	const { data: progress } = useQuery({
 		...getBackupProgressOptions({ path: { shortId: scheduleShortId } }),
 		initialData: initialProgress,
@@ -52,7 +55,7 @@ export const BackupProgressCard = ({ scheduleShortId, initialProgress }: Props) 
 					<p className="font-medium">
 						{progress ? (
 							<>
-								{files_done.toLocaleString()} / {total_files.toLocaleString()}
+								{files_done.toLocaleString(locale)} / {total_files.toLocaleString(locale)}
 							</>
 						) : (
 							"—"

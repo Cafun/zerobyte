@@ -1,5 +1,5 @@
 import type React from "react";
-import { formatBytes } from "~/utils/format-bytes";
+import { useFormatBytes } from "~/client/hooks/use-format-bytes";
 
 type ByteSizeProps = {
 	bytes: number;
@@ -14,6 +14,7 @@ type ByteSizeProps = {
 };
 
 export function ByteSize(props: ByteSizeProps) {
+	const formatBytes = useFormatBytes();
 	const {
 		bytes,
 		base = 1000,

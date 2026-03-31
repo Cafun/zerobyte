@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { ByteSize } from "~/client/components/bytes-size";
+import { useFormatBytes } from "~/client/hooks/use-format-bytes";
+import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { Card } from "~/client/components/ui/card";
 import { Progress } from "~/client/components/ui/progress";
 import { type RestoreProgressEvent, useServerEvents } from "~/client/hooks/use-server-events";
-import { formatBytes } from "~/utils/format-bytes";
 import { formatDuration } from "~/utils/utils";
 
 type Props = {
@@ -12,6 +13,8 @@ type Props = {
 };
 
 export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
+	const formatBytes = useFormatBytes();
+	const { locale } = useRootLoaderData();
 	const { addEventListener } = useServerEvents();
 	const [progress, setProgress] = useState<RestoreProgressEvent | null>(null);
 
@@ -71,9 +74,9 @@ export const RestoreProgress = ({ repositoryId, snapshotId }: Props) => {
 				<div>
 					<p className="text-xs uppercase text-muted-foreground">Files</p>
 					<p className="font-medium">
-						{progress.files_restored.toLocaleString()}
+						{progress.files_restored.toLocaleString(locale)}
 						&nbsp;/&nbsp;
-						{progress.total_files.toLocaleString()}
+						{progress.total_files.toLocaleString(locale)}
 					</p>
 				</div>
 				<div>

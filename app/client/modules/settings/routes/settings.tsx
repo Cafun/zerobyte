@@ -19,6 +19,7 @@ import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/client/components/ui/tabs";
+import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { authClient } from "~/client/lib/auth-client";
 import {
 	DATE_FORMATS,
@@ -29,7 +30,6 @@ import {
 } from "~/client/lib/datetime";
 import { logger } from "~/client/lib/logger";
 import { type AppContext } from "~/context";
-import { Route as RootRoute } from "~/routes/__root";
 import { TwoFactorSection } from "../components/two-factor-section";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
@@ -50,7 +50,7 @@ export function SettingsPage({ appContext, initialMembers, initialSsoSettings, i
 	const [downloadDialogOpen, setDownloadDialogOpen] = useState(false);
 	const [downloadPassword, setDownloadPassword] = useState("");
 	const [isChangingPassword, setIsChangingPassword] = useState(false);
-	const { locale, dateFormat, timeFormat } = RootRoute.useLoaderData();
+	const { locale, dateFormat, timeFormat } = useRootLoaderData();
 
 	const { tab } = useSearch({ from: "/(dashboard)/settings/" });
 	const activeTab = tab || "account";

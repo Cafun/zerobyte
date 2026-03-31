@@ -1,6 +1,6 @@
 import { formatDistanceToNow, isValid } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
-import { Route as RootRoute } from "~/routes/__root";
+import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 
 export type DateInput = Date | string | number | null | undefined;
 
@@ -201,7 +201,7 @@ export function formatTimeAgo(date: DateInput, now = Date.now()): string {
 }
 
 export function useTimeFormat() {
-	const { locale, timeZone, dateFormat, timeFormat, now } = RootRoute.useLoaderData();
+	const { locale, timeZone, dateFormat, timeFormat, now } = useRootLoaderData();
 	const [currentNow, setCurrentNow] = useState(now);
 
 	useEffect(() => {

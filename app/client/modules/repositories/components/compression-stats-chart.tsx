@@ -6,6 +6,7 @@ import {
 } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
 import { ByteSize } from "~/client/components/bytes-size";
+import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardTitle } from "~/client/components/ui/card";
 import { parseError } from "~/client/lib/errors";
@@ -26,6 +27,7 @@ const toSafeNumber = (value: number | undefined) => {
 };
 
 export function CompressionStatsChart({ repositoryShortId, initialStats }: Props) {
+	const { locale } = useRootLoaderData();
 	const refreshStats = useMutation({
 		...refreshRepositoryStatsMutation(),
 		onSuccess: () => {
@@ -133,7 +135,9 @@ export function CompressionStatsChart({ repositoryShortId, initialStats }: Props
 				<div className="flex flex-col gap-1.5 lg:col-span-2">
 					<div className="text-sm font-medium text-muted-foreground">Snapshots</div>
 					<div className="flex items-baseline gap-2">
-						<span className="text-xl font-semibold text-foreground font-mono">{snapshotsCount.toLocaleString()}</span>
+						<span className="text-xl font-semibold text-foreground font-mono">
+							{snapshotsCount.toLocaleString(locale)}
+						</span>
 						<span className="text-xs text-muted-foreground font-mono">
 							{compressionProgressPercent.toFixed(1)}% compressed
 						</span>

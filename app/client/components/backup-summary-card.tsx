@@ -1,13 +1,12 @@
 import { Card, CardContent } from "~/client/components/ui/card";
 import { ByteSize } from "~/client/components/bytes-size";
+import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import type { ResticSnapshotSummaryDto } from "@zerobyte/core/restic";
 import { formatDuration } from "~/utils/utils";
 
 type Props = {
 	summary?: ResticSnapshotSummaryDto | null;
 };
-
-const formatCount = (value: number) => value.toLocaleString();
 
 const getDurationLabel = (start: string, end: string) => {
 	const startMs = new Date(start).getTime();
@@ -17,8 +16,11 @@ const getDurationLabel = (start: string, end: string) => {
 };
 
 export const BackupSummaryCard = ({ summary }: Props) => {
+	const { locale } = useRootLoaderData();
+
 	if (!summary) return null;
 
+	const formatCount = (value: number) => value.toLocaleString(locale);
 	const durationLabel = getDurationLabel(summary.backup_start, summary.backup_end);
 
 	const topStats = [
