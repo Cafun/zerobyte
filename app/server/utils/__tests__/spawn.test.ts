@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { safeExec, safeSpawn } from "@zerobyte/core/node";
 
 describe("safeExec", () => {
@@ -41,7 +41,7 @@ describe("safeExec", () => {
 			const result = await safeExec({
 				command: "sleep",
 				args: ["10"],
-				timeout: 100,
+				timeout: 20,
 			});
 
 			expect(result.timedOut).toBe(true);

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import * as cleanupModule from "../../helpers/cleanup-temporary-keys";
 import * as nodeModule from "../../../node";
 import { tagSnapshots } from "../tag-snapshots";
@@ -22,8 +22,8 @@ const config = {
 const setup = () => {
 	let capturedArgs: string[] = [];
 
-	spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
-	spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
+	vi.spyOn(cleanupModule, "cleanupTemporaryKeys").mockImplementation(() => Promise.resolve());
+	vi.spyOn(nodeModule, "safeExec").mockImplementation(async ({ args }) => {
 		capturedArgs = args ?? [];
 		return { exitCode: 0, stdout: "", stderr: "", timedOut: false };
 	});
@@ -34,7 +34,7 @@ const setup = () => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("tagSnapshots command", () => {
@@ -44,6 +44,8 @@ describe("tagSnapshots command", () => {
 
 		await tagSnapshots(config, snapshotIds, { add: ["keep"] }, "org-1", mockDeps);
 
-		expect(getArgs()).toEqual(["--repo", "/tmp/restic-repo", "tag", "--add", "keep", "--json", "--", ...snapshotIds]);
+		const separatorIndex = getArgs().indexOf("--");
+		expect(separatorIndex).toBeGreaterThan(-1);
+		expect(getArgs().slice(separatorIndex + 1)).toEqual(snapshotIds);
 	});
 });

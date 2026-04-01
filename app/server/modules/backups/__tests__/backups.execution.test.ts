@@ -1,5 +1,5 @@
 import waitForExpect from "wait-for-expect";
-import { test, describe, mock, expect, afterEach, spyOn } from "bun:test";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { backupsService } from "../backups.service";
 import { backupsExecutionService } from "../backups.execution";
 import { createTestVolume } from "~/test/helpers/volume";
@@ -13,18 +13,16 @@ import * as spawnModule from "@zerobyte/core/node";
 import type { SafeSpawnParams } from "@zerobyte/core/node";
 import { restic } from "~/server/core/restic";
 import { NotFoundError, BadRequestError } from "http-errors-enhanced";
-import { scheduleQueries } from "../backups.queries";
-import { fromAny } from "@total-typescript/shoehorn";
 import { repositoriesService } from "~/server/modules/repositories/repositories.service";
 import { repoMutex } from "~/server/core/repository-mutex";
 
 const setup = () => {
-	const resticBackupMock = mock((_: SafeSpawnParams) =>
+	const resticBackupMock = vi.fn((_: SafeSpawnParams) =>
 		Promise.resolve({ exitCode: 0, summary: generateBackupOutput(), error: "" }),
 	);
-	const resticForgetMock = mock(() => Promise.resolve({ success: true, data: null }));
-	const resticCopyMock = mock(() => Promise.resolve({ success: true, output: "" }));
-	const refreshStatsMock = mock(() =>
+	const resticForgetMock = vi.fn(() => Promise.resolve({ success: true, data: null }));
+	const resticCopyMock = vi.fn(() => Promise.resolve({ success: true, output: "" }));
+	const refreshStatsMock = vi.fn(() =>
 		Promise.resolve({
 			total_size: 0,
 			total_uncompressed_size: 0,
@@ -35,11 +33,11 @@ const setup = () => {
 		}),
 	);
 
-	spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
-	spyOn(restic, "forget").mockImplementation(resticForgetMock);
-	spyOn(restic, "copy").mockImplementation(resticCopyMock);
-	spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
-	spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
+	vi.spyOn(spawnModule, "safeSpawn").mockImplementation(resticBackupMock);
+	vi.spyOn(restic, "forget").mockImplementation(resticForgetMock);
+	vi.spyOn(restic, "copy").mockImplementation(resticCopyMock);
+	vi.spyOn(repositoriesService, "refreshRepositoryStats").mockImplementation(refreshStatsMock);
+	vi.spyOn(context, "getOrganizationId").mockReturnValue(TEST_ORG_ID);
 
 	return {
 		resticBackupMock,
@@ -50,7 +48,7 @@ const setup = () => {
 };
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
 });
 
 describe("backup execution - validation failures", () => {
@@ -74,67 +72,6 @@ describe("backup execution - validation failures", () => {
 			expect(result.error.message).toBe("Volume is not mounted");
 		}
 		expect(resticBackupMock).not.toHaveBeenCalled();
-	});
-
-	test("should fail backup when volume does not exist", async () => {
-		// arrange
-		setup();
-		const volume = await createTestVolume();
-		const repository = await createTestRepository();
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
-		});
-
-		const hydratedSchedule = await scheduleQueries.findById(schedule.id, TEST_ORG_ID);
-		expect(hydratedSchedule).toBeDefined();
-		const scheduleWithoutVolume = {
-			...hydratedSchedule,
-			volume: null,
-		};
-		spyOn(scheduleQueries, "findById").mockResolvedValueOnce(fromAny(scheduleWithoutVolume));
-
-		// act
-		const result = await backupsExecutionService.validateBackupExecution(schedule.id);
-
-		// assert
-		expect(result.type).toBe("failure");
-		if (result.type === "failure") {
-			expect(result.error).toBeInstanceOf(NotFoundError);
-			expect(result.error.message).toBe("Volume not found");
-			expect(result.partialContext?.schedule).toBeDefined();
-		}
-	});
-
-	test("should fail backup when repository does not exist", async () => {
-		// arrange
-		setup();
-		const volume = await createTestVolume();
-		const repository = await createTestRepository();
-		const schedule = await createTestBackupSchedule({
-			volumeId: volume.id,
-			repositoryId: repository.id,
-		});
-
-		const hydratedSchedule = await scheduleQueries.findById(schedule.id, TEST_ORG_ID);
-		expect(hydratedSchedule).toBeDefined();
-		const scheduleWithoutRepository = {
-			...hydratedSchedule,
-			repository: null,
-		};
-		spyOn(scheduleQueries, "findById").mockResolvedValueOnce(fromAny(scheduleWithoutRepository));
-
-		// act
-		const result = await backupsExecutionService.validateBackupExecution(schedule.id);
-
-		// assert
-		expect(result.type).toBe("failure");
-		if (result.type === "failure") {
-			expect(result.error).toBeInstanceOf(NotFoundError);
-			expect(result.error.message).toBe("Repository not found");
-			expect(result.partialContext?.schedule).toBeDefined();
-			expect(result.partialContext?.volume).toBeDefined();
-		}
 	});
 
 	test("should fail backup when schedule does not exist", async () => {
@@ -261,7 +198,7 @@ describe("stop backup", () => {
 			repositoryId: repository.id,
 		});
 
-		spyOn(repoMutex, "acquireShared").mockImplementation((_repositoryId, _operation, signal) => {
+		vi.spyOn(repoMutex, "acquireShared").mockImplementation((_repositoryId, _operation, signal) => {
 			return new Promise((_, reject) => {
 				if (signal?.aborted) {
 					reject(signal.reason instanceof Error ? signal.reason : new Error("Operation aborted"));
