@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Calendar, Clock, Database, HardDrive, Tag, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Calendar, Clock, Database, HardDrive, Tag, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { ByteSize } from "~/client/components/bytes-size";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
@@ -55,6 +55,33 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 	const [showReTagDialog, setShowReTagDialog] = useState(false);
 	const [targetScheduleId, setTargetScheduleId] = useState<string>("");
+	const [sortField, setSortField] = useState<"time" | "size" | "duration">("time");
+	const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+	const sortedSnapshots = useMemo(() => {
+		return [...snapshots].sort((a, b) => {
+			const diff = a[sortField] - b[sortField];
+			return sortDir === "asc" ? diff : -diff;
+		});
+	}, [snapshots, sortField, sortDir]);
+
+	const handleSort = (field: "time" | "size" | "duration") => {
+		if (sortField === field) {
+			setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+		} else {
+			setSortField(field);
+			setSortDir("desc");
+		}
+	};
+
+	const SortIcon = ({ field }: { field: "time" | "size" | "duration" }) => {
+		if (sortField !== field) return <ArrowUpDown className="ml-1 h-3 w-3 text-muted-foreground/50" />;
+		return sortDir === "asc" ? (
+			<ArrowUp className="ml-1 h-3 w-3" />
+		) : (
+			<ArrowDown className="ml-1 h-3 w-3" />
+		);
+	};
 
 	const deleteSnapshots = useMutation({
 		...deleteSnapshotsMutation(),
@@ -90,10 +117,10 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 	};
 
 	const toggleSelectAll = () => {
-		if (selectedIds.size === snapshots.length) {
+		if (selectedIds.size === sortedSnapshots.length) {
 			setSelectedIds(new Set());
 		} else {
-			setSelectedIds(new Set(snapshots.map((s) => s.short_id)));
+			setSelectedIds(new Set(sortedSnapshots.map((s) => s.short_id)));
 		}
 	};
 
@@ -139,20 +166,44 @@ export const SnapshotsTable = ({ snapshots, repositoryId, backups, listSnapshots
 						<TableRow>
 							<TableHead className="w-10">
 								<Checkbox
-									checked={selectedIds.size === snapshots.length && snapshots.length > 0}
+									checked={selectedIds.size === sortedSnapshots.length && sortedSnapshots.length > 0}
 									onCheckedChange={toggleSelectAll}
 									aria-label="Select all"
 								/>
 							</TableHead>
 							<TableHead className="uppercase">Snapshot ID</TableHead>
 							<TableHead className="uppercase">Schedule</TableHead>
-							<TableHead className="uppercase">Date & Time</TableHead>
-							<TableHead className="uppercase">Size</TableHead>
-							<TableHead className="uppercase hidden md:table-cell text-right">Duration</TableHead>
+							<TableHead
+								className="uppercase cursor-pointer select-none hover:text-foreground"
+								onClick={() => handleSort("time")}
+							>
+								<span className="inline-flex items-center">
+									Date & Time
+									<SortIcon field="time" />
+								</span>
+							</TableHead>
+							<TableHead
+								className="uppercase cursor-pointer select-none hover:text-foreground"
+								onClick={() => handleSort("size")}
+							>
+								<span className="inline-flex items-center">
+									Size
+									<SortIcon field="size" />
+								</span>
+							</TableHead>
+							<TableHead
+								className="uppercase hidden md:table-cell text-right cursor-pointer select-none hover:text-foreground"
+								onClick={() => handleSort("duration")}
+							>
+								<span className="inline-flex items-center justify-end w-full">
+									Duration
+									<SortIcon field="duration" />
+								</span>
+							</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
-						{snapshots.map((snapshot) => {
+						{sortedSnapshots.map((snapshot) => {
 							const backup = backups.find((b) => snapshot.tags.includes(b.shortId));
 							const isSelected = selectedIds.has(snapshot.short_id);
 
