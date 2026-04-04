@@ -502,7 +502,7 @@ interface FileProps {
 }
 
 const File = memo(({ file, onFileSelect, selected, withCheckbox, checked, onCheckboxChange }: FileProps) => {
-	const { depth, name, fullPath, size } = file;
+	const { depth, name, fullPath, size, modifiedAt } = file;
 
 	const handleClick = useCallback(() => {
 		onFileSelect(fullPath);
@@ -529,8 +529,13 @@ const File = memo(({ file, onFileSelect, selected, withCheckbox, checked, onChec
 				<Checkbox checked={checked} onCheckedChange={handleCheckboxChange} onClick={(e) => e.stopPropagation()} />
 			)}
 			<span className="truncate">{name}</span>
+			{typeof modifiedAt === "number" && (
+				<span className="shrink-0 text-xs text-muted-foreground ml-auto">
+					{new Date(modifiedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+				</span>
+			)}
 			{typeof size === "number" && (
-				<span className="ml-auto shrink-0 text-xs text-muted-foreground">
+				<span className={typeof modifiedAt === "number" ? "shrink-0 text-xs text-muted-foreground" : "ml-auto shrink-0 text-xs text-muted-foreground"}>
 					<ByteSize bytes={size} base={1024} />
 				</span>
 			)}
@@ -614,6 +619,7 @@ interface BaseNode {
 interface FileNode extends BaseNode {
 	kind: "file";
 	size?: number;
+	modifiedAt?: number;
 }
 
 interface FolderNode extends BaseNode {
@@ -645,6 +651,7 @@ function buildFileList(files: FileEntry[], foldersOnly = false): Node[] {
 				fullPath: file.path,
 				depth,
 				size: file.size,
+				modifiedAt: isFile ? file.modifiedAt : undefined,
 			});
 		}
 

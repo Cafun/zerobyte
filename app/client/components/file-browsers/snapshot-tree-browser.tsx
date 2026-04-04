@@ -7,6 +7,16 @@ import { parseError } from "~/client/lib/errors";
 import { isPathWithin, normalizeAbsolutePath } from "@zerobyte/core/utils";
 import { logger } from "~/client/lib/logger";
 
+function mapApiFile(file: { name: string; type: string; path: string; size?: number; mtime?: string }) {
+	return {
+		name: file.name,
+		type: file.type,
+		path: file.path,
+		size: file.size,
+		modifiedAt: file.mtime ? new Date(file.mtime).getTime() : undefined,
+	};
+}
+
 function createPathPrefixFns(basePath: string) {
 	return {
 		strip(path: string) {
@@ -52,13 +62,24 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		? normalizedDisplayBasePath
 		: "/";
 
-	const { data, isLoading, error } = useQuery({
+	const { data: rawData, isLoading, error } = useQuery({
 		...listSnapshotFilesOptions({
 			path: { shortId: repositoryId, snapshotId },
 			query: { path: normalizedQueryBasePath },
 		}),
 		enabled,
 	});
+
+	const data = useMemo(
+		() =>
+			rawData
+				? {
+						...rawData,
+						files: rawData.files.map(mapApiFile),
+					}
+				: undefined,
+		[rawData],
+	);
 
 	const displayPathFns = useMemo(() => createPathPrefixFns(effectiveDisplayBasePath), [effectiveDisplayBasePath]);
 
@@ -77,12 +98,13 @@ export const SnapshotTreeBrowser = (props: SnapshotTreeBrowserProps) => {
 		initialData: data,
 		isLoading,
 		fetchFolder: async (displayPath, offset = 0) => {
-			return await queryClient.ensureQueryData(
+			const result = await queryClient.ensureQueryData(
 				listSnapshotFilesOptions({
 					path: { shortId: repositoryId, snapshotId },
 					query: { path: displayPath, offset: offset, limit: pageSize },
 				}),
 			);
+			return { ...result, files: result.files.map(mapApiFile) };
 		},
 		prefetchFolder: (displayPath) => {
 			void queryClient
